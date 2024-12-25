@@ -46,8 +46,7 @@ const (
 
 	// Cache item granted for caching commitment results.
 	commitmentCacheItems = 64 * 1024 * 1024 / (commitmentSize + common.AddressLength)
-	pointCacheSize = 4096
-
+	pointCacheSize       = 4096
 )
 
 // Database wraps access to tries and contract code.
@@ -157,17 +156,18 @@ type Trie interface {
 func NewDatabaseForTesting() *cachingDB {
 	return NewDatabase(triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil), nil)
 }
+
 // NewDatabaseWithConfig creates a backing store for state. The returned database
 // is safe for concurrent use and retains a lot of collapsed RLP trie nodes in a
-// large memory cache.
-func NewDatabaseWithConfig(db ethdb.Database, config *triedb.Config) Database {
-	return &cachingDB{
-		disk:          db,
-		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
-		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
-		triedb:        triedb.NewDatabase(db, config),
-	}
-}
+// // large memory cache.
+// func NewDatabaseWithConfig(db ethdb.Database, config *triedb.Config) Database {
+// 	return &cachingDB{
+// 		disk:          db,
+// 		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
+// 		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
+// 		triedb:        triedb.NewDatabase(db, config),
+// 	}
+// }
 
 // OpenTrie opens the main account trie at a specific root hash.
 func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
@@ -181,14 +181,15 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 	return tr, nil
 }
 
-func (db *cachingDB) CopyTrie(t Trie) Trie {
-	switch t := t.(type) {
-	case *trie.StateTrie:
-		return t.Copy()
-	default:
-		panic(fmt.Errorf("unknown trie type %T", t))
+	func (db *cachingDB) CopyTrie(t Trie) Trie {
+		switch t := t.(type) {
+		case *trie.StateTrie:
+			return t.Copy()
+		default:
+			panic(fmt.Errorf("unknown trie type %T", t))
+		}
 	}
-}
+
 // OpenStorageTrie opens the storage trie of an account.
 func (db *cachingDB) OpenStorageTrie(stateRoot common.Hash, address common.Address, root common.Hash, self Trie) (Trie, error) {
 	// In the verkle case, there is only one tree. But the two-tree structure
@@ -204,7 +205,18 @@ func (db *cachingDB) OpenStorageTrie(stateRoot common.Hash, address common.Addre
 	return tr, nil
 }
 
-
+//	func NewDatabase(triedb *triedb.Database, snap *snapshot.Tree) *cachingDB {
+//		return &cachingDB{
+//			disk:          triedb.Disk(),
+//			triedb:        triedb,
+//			snap:          snap,
+//			codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
+//			codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
+//			pointCache:    utils.NewPointCache(pointCacheSize),
+//		}
+//	}
+//
+// NewDatabaseWithNodeDB creates a state database with an already initialized node database.
 func NewDatabase(triedb *triedb.Database, snap *snapshot.Tree) *cachingDB {
 	return &cachingDB{
 		disk:          triedb.Disk(),
@@ -213,15 +225,6 @@ func NewDatabase(triedb *triedb.Database, snap *snapshot.Tree) *cachingDB {
 		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
 		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
 		pointCache:    utils.NewPointCache(pointCacheSize),
-	}
-}
-// NewDatabaseWithNodeDB creates a state database with an already initialized node database.
-func NewDatabaseWithNodeDB(db ethdb.Database, triedb *triedb.Database) Database {
-	return &cachingDB{
-		disk:          db,
-		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
-		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
-		triedb:        triedb,
 	}
 }
 
@@ -233,7 +236,6 @@ type cachingDB struct {
 	codeSizeCache *lru.Cache[common.Hash, int]
 	pointCache    *utils.PointCache
 }
-
 
 // PointCache returns the cache of evaluated curve points.
 func (db *cachingDB) PointCache() *utils.PointCache {
@@ -329,5 +331,3 @@ func (db *cachingDB) DiskDB() ethdb.KeyValueStore {
 func (db *cachingDB) TrieDB() *triedb.Database {
 	return db.triedb
 }
-
-

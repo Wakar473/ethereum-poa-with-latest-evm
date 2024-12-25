@@ -272,7 +272,7 @@ func (db *Database) Recover(target common.Hash) error {
 		// TODO define verkle loader
 		log.Crit("Verkle loader is not defined")
 	} else {
-		loader = trie.NewMerkleLoader(db)
+		// loader = trie.NewMerkleLoader(db)
 	}
 	return pdb.Recover(target, loader)
 }

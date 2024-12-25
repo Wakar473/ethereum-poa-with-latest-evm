@@ -60,7 +60,6 @@ func NewSecure(stateRoot common.Hash, owner common.Hash, root common.Hash, db da
 type preimageStore interface {
 	// Preimage retrieves the preimage of the specified hash.
 	Preimage(hash common.Hash) []byte
-	
 
 	// InsertPreimage commits a set of preimages along with their hashes.
 	InsertPreimage(preimages map[common.Hash][]byte)
@@ -68,12 +67,11 @@ type preimageStore interface {
 type StateTrie struct {
 	trie             Trie
 	db               database.Database
-	preimages        preimageStore
 	hashKeyBuf       [common.HashLength]byte
 	secKeyCache      map[string][]byte
 	secKeyCacheOwner *StateTrie // Pointer to self, replace the key cache on mismatch
+	preimages        preimageStore
 }
-
 
 // NewStateTrie creates a trie with an existing root node from a backing database.
 //
@@ -88,8 +86,16 @@ func NewStateTrie(id *ID, db database.Database) (*StateTrie, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StateTrie{trie: *trie, db: db}, nil
+	tr := &StateTrie{trie: *trie, db: db}
+
+	// link the preimage store if it's supported
+	preimages, ok := db.(preimageStore)
+	if ok {
+		tr.preimages = preimages
+	}
+	return tr, nil
 }
+
 // MustGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
 //
@@ -241,11 +247,13 @@ func (t *StateTrie) GetKey(shaKey []byte) []byte {
 func (t *StateTrie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
 	// Write all the pre-images to the actual disk database
 	if len(t.getSecKeyCache()) > 0 {
-		preimages := make(map[common.Hash][]byte)
-		for hk, key := range t.secKeyCache {
-			preimages[common.BytesToHash([]byte(hk))] = key
+		if t.preimages != nil {
+			preimages := make(map[common.Hash][]byte, len(t.secKeyCache))
+			for hk, key := range t.secKeyCache {
+				preimages[common.BytesToHash([]byte(hk))] = key
+			}
+			t.preimages.InsertPreimage(preimages)
 		}
-		t.preimages.InsertPreimage(preimages)
 		t.secKeyCache = make(map[string][]byte)
 	}
 	// Commit the trie and return its modified nodeset.

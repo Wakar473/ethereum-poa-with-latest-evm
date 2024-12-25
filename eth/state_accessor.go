@@ -68,7 +68,7 @@ func (eth *Ethereum) hashState(ctx context.Context, block *types.Block, reexec u
 			// the internal junks created by tracing will be persisted into the disk.
 			// TODO(rjl493456442), clean cache is disabled to prevent memory leak,
 			// please re-enable it for better performance.
-			database = state.NewDatabaseWithConfig(eth.chainDb, triedb.HashDefaults)
+			database = state.NewDatabase(tdb,nil)
 			if statedb, err = state.New(block.Root(), database); err == nil {
 				log.Info("Found disk backend for state trie", "root", block.Root(), "number", block.Number())
 				return statedb, noopReleaser, nil

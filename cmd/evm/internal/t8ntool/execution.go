@@ -359,7 +359,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 }
 
 func MakePreState(db ethdb.Database, accounts types.GenesisAlloc) *state.StateDB {
-	sdb := state.NewDatabaseWithConfig(db, &triedb.Config{Preimages: true})
+	tdb := triedb.NewDatabase(db, &triedb.Config{Preimages: true})
+	sdb := state.NewDatabase(tdb, nil)
 	statedb, _ := state.New(types.EmptyRootHash, sdb)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
@@ -374,6 +375,23 @@ func MakePreState(db ethdb.Database, accounts types.GenesisAlloc) *state.StateDB
 	statedb, _ = state.New(root, sdb)
 	return statedb
 }
+
+// func MakePreState(db ethdb.Database, accounts types.GenesisAlloc) *state.StateDB {
+// 	sdb := state.NewDatabaseWithConfig(db, &triedb.Config{Preimages: true})
+// 	statedb, _ := state.New(types.EmptyRootHash, sdb)
+// 	for addr, a := range accounts {
+// 		statedb.SetCode(addr, a.Code)
+// 		statedb.SetNonce(addr, a.Nonce)
+// 		statedb.SetBalance(addr, uint256.MustFromBig(a.Balance))
+// 		for k, v := range a.Storage {
+// 			statedb.SetState(addr, k, v)
+// 		}
+// 	}
+// 	// Commit and re-open to start with a clean state.
+// 	root, _ := statedb.Commit(0, false)
+// 	statedb, _ = state.New(root, sdb)
+// 	return statedb
+// }
 
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewLegacyKeccak256()

@@ -18,6 +18,7 @@ package trienode
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -88,7 +89,13 @@ func (set *NodeSet) ForEachWithOrder(callback func(path string, n *Node)) {
 		callback(path, set.Nodes[path])
 	}
 }
-
+func (set *NodeSet) HashSet() map[common.Hash][]byte {
+	ret := make(map[common.Hash][]byte, len(set.Nodes))
+	for _, n := range set.Nodes {
+		ret[n.Hash] = n.Blob
+	}
+	return ret
+}
 // AddNode adds the provided node into set.
 func (set *NodeSet) AddNode(path []byte, n *Node) {
 	if n.IsDeleted() {
@@ -138,6 +145,20 @@ func (set *NodeSet) Hashes() []common.Hash {
 		ret = append(ret, node.Hash)
 	}
 	return ret
+}
+func (set *NodeSet) MergeSet(other *NodeSet) error {
+	if set.Owner != other.Owner {
+		return fmt.Errorf("nodesets belong to different owner are not mergeable %x-%x", set.Owner, other.Owner)
+	}
+	maps.Copy(set.Nodes, other.Nodes)
+
+	set.deletes += other.deletes
+	set.updates += other.updates
+
+	// Since we assume the sets are disjoint, we can safely append leaves
+	// like this without deduplication.
+	set.Leaves = append(set.Leaves, other.Leaves...)
+	return nil
 }
 
 // Summary returns a string-representation of the NodeSet.

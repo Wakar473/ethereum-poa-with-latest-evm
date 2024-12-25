@@ -42,7 +42,8 @@ type Trie struct {
 
 	// Flag whether the commit operation is already performed. If so the
 	// trie is not usable(latest states is invisible).
-	committed bool
+	committed   bool
+	uncommitted int
 
 	// Keep track of the number leaves which have been inserted since the last
 	// hashing operation. This number will not directly map to the number of
@@ -608,8 +609,7 @@ func (t *Trie) Hash() common.Hash {
 // The returned nodeset can be nil if the trie is clean (nothing to commit).
 // Once the trie is committed, it's not usable anymore. A new trie must
 // be created with new root and updated trie database for following usage
-func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) {
-	defer t.tracer.reset()
+func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet,error) {
 	defer func() {
 		t.committed = true
 	}()
@@ -620,13 +620,13 @@ func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) 
 	if t.root == nil {
 		paths := t.tracer.deletedNodes()
 		if len(paths) == 0 {
-			return types.EmptyRootHash, nil, nil // case (a)
+			return types.EmptyRootHash, nil,nil // case (a)
 		}
 		nodes := trienode.NewNodeSet(t.owner)
 		for _, path := range paths {
 			nodes.AddNode([]byte(path), trienode.NewDeleted())
 		}
-		return types.EmptyRootHash, nodes, nil // case (b)
+		return types.EmptyRootHash, nodes ,nil// case (b)
 	}
 	// Derive the hash for all dirty nodes first. We hold the assumption
 	// in the following procedure that all nodes are hashed.
@@ -638,14 +638,16 @@ func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet, error) 
 		// Replace the root node with the origin hash in order to
 		// ensure all resolved nodes are dropped after the commit.
 		t.root = hashedNode
-		return rootHash, nil, nil
+		return rootHash, nil,nil
 	}
 	nodes := trienode.NewNodeSet(t.owner)
 	for _, path := range t.tracer.deletedNodes() {
 		nodes.AddNode([]byte(path), trienode.NewDeleted())
 	}
-	t.root = newCommitter(nodes, t.tracer, collectLeaf).Commit(t.root)
-	return rootHash, nodes, nil
+	// If the number of changes is below 100, we let one thread handle it
+	t.root = newCommitter(nodes, t.tracer, collectLeaf).Commit(t.root, t.uncommitted > 100)
+	t.uncommitted = 0
+	return rootHash, nodes,nil
 }
 
 // hashRoot calculates the root hash of the given trie

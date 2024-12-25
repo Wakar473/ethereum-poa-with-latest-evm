@@ -452,7 +452,7 @@ func MakePreState(db ethdb.Database, accounts types.GenesisAlloc, snapshotter bo
 		tconf.PathDB = pathdb.Defaults
 	}
 	triedb := triedb.NewDatabase(db, tconf)
-	sdb := state.NewDatabaseWithNodeDB(db, triedb)
+	sdb := state.NewDatabase(triedb,nil)
 	statedb, _ := state.New(types.EmptyRootHash, sdb)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
